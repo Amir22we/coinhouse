@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Мои заявки — Coinhouse{% endblock %}
+{% block content %}
+<h1>Мои заявки</h1>
+<p class="sub">Пополнения и выводы. Статусы обновляет администрация, инструкции приходят в «Сообщения».</p>
+<div class="card">
+{% if reqs %}
+<table>
+  <tr><th>№</th><th>Дата</th><th>Тип</th><th>Коины</th><th>Статус</th><th>Комментарий админа</th></tr>
+  {% for r in reqs %}
+  <tr>
+    <td class="mono">#{{ r.id }}</td>
+    <td class="mono">{{ r.created_at|date:"d.m H:i" }}</td>
+    <td>{{ r.get_kind_display }}</td>
+    <td class="mono">{{ r.items_display }}</td>
+    <td><span class="status {{ r.status }}">{{ r.get_status_display }}</span></td>
+    <td class="helper">{{ r.admin_comment|truncatechars:60 }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="helper">Заявок пока нет.</p>{% endif %}
+</div>
+{% endblock %}

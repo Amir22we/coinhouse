@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Кабинет — Coinhouse{% endblock %}
+{% block content %}
+<h1>Кабинет</h1>
+<p class="sub">Привет, <b>{{ user.username }}</b>. Всего на балансе — <span class="mono" style="color:var(--gold)">{{ total }}</span> коинов.</p>
+
+<div class="grid cols-2">
+  <div class="card">
+    <h2 style="margin-top:0">Баланс по рангам</h2>
+    <div class="balance-grid">
+      {% for b in balances %}
+        <div class="balance-cell"><span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span><span class="amt">{{ b.amount }}</span></div>
+      {% endfor %}
+    </div>
+    <div class="bj-actions">
+      <a class="btn sm" href="{% url 'deposit' %}">Пополнить</a>
+      <a class="btn ghost sm" href="{% url 'withdraw' %}">Вывести</a>
+      <a class="btn ghost sm" href="{% url 'blackjack' %}">Играть ♠</a>
+    </div>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Последние заявки</h2>
+    {% if recent_requests %}
+      <table>
+        <tr><th>№</th><th>Тип</th><th>Коины</th><th>Статус</th></tr>
+        {% for r in recent_requests %}
+        <tr>
+          <td class="mono">#{{ r.id }}</td>
+          <td>{{ r.get_kind_display }}</td>
+          <td class="mono">{{ r.items_display }}</td>
+          <td><span class="status {{ r.status }}">{{ r.get_status_display }}</span></td>
+        </tr>
+        {% endfor %}
+      </table>
+      <p style="margin-top:12px"><a href="{% url 'requests' %}">Все заявки →</a></p>
+    {% else %}
+      <p class="helper">Заявок пока нет. Начни с <a href="{% url 'deposit' %}">пополнения</a>.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

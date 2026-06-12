@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Вывод — Coinhouse{% endblock %}
+{% block content %}
+<h1>Вывод коинов</h1>
+<p class="sub">Укажи, сколько коинов каждого ранга вывести. Они заморозятся до подтверждения администрацией. Для вывода необходимо создать соответсвующий лот, в ином случае администрация имеет право отклонить заявку</p>
+<form method="post" class="card">{% csrf_token %}
+  <label>Доступно и сумма вывода</label>
+  <div class="coin-input-grid">
+    {% for b in balances %}
+      <div class="coin-input" {% if b.amount == 0 %}style="opacity:.45"{% endif %}>
+        <span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span>
+        <span class="helper mono">{{ b.amount }}</span>
+        <input type="number" min="0" max="{{ b.amount }}" step="1" name="coin_{{ b.coin.code }}" placeholder="0" {% if b.amount == 0 %}disabled{% endif %}>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="field">
+    <label>Комментарий (ник в игре, как удобнее получить)</label>
+    <textarea name="comment" maxlength="500"></textarea>
+  </div>
+  <button class="btn" type="submit">Создать заявку на вывод</button>
+</form>
+{% endblock %}

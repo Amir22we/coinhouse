@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero">
+  <div class="eyebrow">Биржа карт· Блекджек</div>
+  <h1>Меняй карты, ставь <span class="gold">фишки</span>, забирай выигрыш </h1>
+  <p class="sub">Coinhouse — веб-площадка для обмена картами. Пополняешь баланс, играешь в классический блекджек, выводишь выигрыш.</p>
+  <div class="hero-chips">
+    {% for c in coins %}<span class="chip" data-c="{{ c.code }}">{{ c.code }}</span>{% endfor %}
+  </div>
+  <div class="hero-cta">
+    {% if user.is_authenticated %}
+      <a class="btn" href="{% url 'blackjack' %}">За стол ♠</a>
+      <a class="btn ghost" href="{% url 'deposit' %}">Пополнить баланс</a>
+    {% else %}
+      <a class="btn" href="{% url 'register' %}">Создать аккаунт</a>
+      <a class="btn ghost" href="{% url 'info' %}">Как это работает</a>
+    {% endif %}
+  </div>
+</section>
+<div class="grid cols-3" style="margin-top:30px">
+  <div class="card"><div class="eyebrow">01 · Пополнение</div>Создай заявку с нужными рангами (от 5 карт каждого), получи инструкцию от администрации в сообщениях.</div>
+  <div class="card"><div class="eyebrow">02 · Игра</div>Классический блекджек против стола. Минимальная ставка — 3 коина, ранги можно смешивать в одной ставке. Выигрыш 1:1.</div>
+  <div class="card"><div class="eyebrow">03 · Вывод</div>Заявка на вывод замораживает коины. После подтверждения администрация возвращает тебе выигрыш.</div>
+</div>
+{% endblock %}

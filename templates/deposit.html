@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Пополнение — Coinhouse{% endblock %}
+{% block content %}
+<h1>Пополнение баланса</h1>
+<p class="sub">Укажи, сколько коинов каждого ранга хочешь купить. Минимум — {{ min_deposit }} коинов на каждый выбранный ранг. После отправки администрация пришлёт инструкцию в "Сообщения".</p>
+<form method="post" class="card">{% csrf_token %}
+  <label>Количество по рангам</label>
+  <div class="coin-input-grid">
+    {% for c in coins %}
+      <div class="coin-input"><span class="chip sm" data-c="{{ c.code }}">{{ c.code }}</span><input type="number" min="0" step="1" name="coin_{{ c.code }}" placeholder="0"></div>
+    {% endfor %}
+  </div>
+  <div class="field">
+    <label>Комментарий (ник на сайте, удобное время и т.п.)</label>
+    <textarea name="comment" maxlength="500"></textarea>
+  </div>
+  <button class="btn" type="submit">Отправить заявку</button>
+</form>
+{% endblock %}

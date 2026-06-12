@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Блекджек — Coinhouse{% endblock %}
+{% block content %}
+<h1>Блекджек</h1>
+<p class="sub">Дилер добирает до 17. Выплата 1:1, ничья — возврат ставки. Минимум {{ min_bet }} коина, ранги можно смешивать.</p>
+
+{% if game %}
+<div class="table-felt">
+  <div class="hand-label">Дилер {% if game.dealer_value %}<span class="val">{{ game.dealer_value }}{% if game.dealer_partial %}+?{% endif %}</span>{% endif %}</div>
+  <div class="hand">
+    {% for c in game.dealer %}
+      {% if c.hidden %}
+        <div class="pcard back"></div>
+      {% else %}
+        <div class="pcard {% if c.s == '♥' or c.s == '♦' %}red{% endif %}"><span>{{ c.r }}</span><span class="suit">{{ c.s }}</span></div>
+      {% endif %}
+    {% empty %}
+      <span class="helper">У дилера пока нет карт.</span>
+    {% endfor %}
+  </div>
+
+  <div class="hand-label" style="margin-top:24px">Твоя рука {% if game.player %}<span class="val">{{ game.player_value }}</span>{% endif %}</div>
+  <div class="hand">
+    {% for c in game.player %}
+      <div class="pcard {% if c.s == '♥' or c.s == '♦' %}red{% endif %}"><span>{{ c.r }}</span><span class="suit">{{ c.s }}</span></div>
+    {% empty %}
+      <span class="helper">Нажми «Взять карту» — карты раздаются по одной.</span>
+    {% endfor %}
+  </div>
+
+  <p class="helper" style="margin-top:16px">Ставка: <span class="mono" style="color:var(--gold)">{{ game.bet_display }}</span></p>
+
+  {% if game.finished %}
+    <div class="bj-result {{ game.result }}">
+      {% if game.result == 'win' %}Победа — выигрыш 1:1 зачислен{% elif game.result == 'push' %}Ничья — ставка возвращена{% else %}Поражение — ставка списана{% endif %}
+    </div>
+    <form method="post" action="{% url 'blackjack_action' 'new' %}">{% csrf_token %}
+      <button class="btn" type="submit">Новая раздача</button>
+    </form>
+  {% else %}
+    <div class="bj-actions">
+      <form method="post" action="{% url 'blackjack_action' 'hit' %}">{% csrf_token %}<button class="btn" type="submit">Взять карту</button></form>
+      {% if game.can_stand %}<form method="post" action="{% url 'blackjack_action' 'stand' %}">{% csrf_token %}<button class="btn ghost" type="submit">Хватит</button></form>{% endif %}
+    </div>
+  {% endif %}
+</div>
+{% else %}
+<form method="post" action="{% url 'blackjack_bet' %}" class="card">{% csrf_token %}
+  <h2 style="margin-top:0">Сделай ставку</h2>
+  <p class="helper">Рядом с фишкой — сколько у тебя есть. Введи, сколько ставишь каждого ранга.</p>
+  <div class="coin-input-grid">
+    {% for b in balances %}
+      <div class="coin-input" {% if b.amount == 0 %}style="opacity:.45"{% endif %}>
+        <span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span>
+        <span class="helper mono">{{ b.amount }}</span>
+        <input type="number" min="0" max="{{ b.amount }}" step="1" name="bet_{{ b.coin.code }}" placeholder="0" {% if b.amount == 0 %}disabled{% endif %}>
+      </div>
+    {% endfor %}
+  </div>
+  <button class="btn" type="submit">Начать игру ♠</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'panel/base.html' %}
+{% block title %}Заявка #{{ req.id }} — Админ{% endblock %}
+{% block content %}
+<h1>Заявка #{{ req.id }} · {{ req.get_kind_display }}</h1>
+<p class="sub">
+  <a href="{% url 'panel_user_detail' req.user_id %}">{{ req.user.username }}</a> ·
+  {{ req.created_at|date:"d.m.Y H:i" }} ·
+  <span class="status {{ req.status }}">{{ req.get_status_display }}</span>
+</p>
+<div class="grid cols-2">
+  <div class="card">
+    <h2 style="margin-top:0">Содержимое</h2>
+    {% for code, amount in req.items.items %}
+      <div class="balance-row"><span class="chip sm" data-c="{{ code }}">{{ code }}</span><span class="amt">{{ amount }}</span></div>
+    {% endfor %}
+    <p class="helper" style="margin-top:12px">Всего: {{ req.total }} коинов</p>
+    {% if req.user_comment %}<h2>Комментарий пользователя</h2><p>{{ req.user_comment|linebreaksbr }}</p>{% endif %}
+    {% if req.admin_comment %}<h2>Комментарий админа</h2><p class="helper">{{ req.admin_comment|linebreaksbr }}</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Действия</h2>
+    <form method="post">{% csrf_token %}
+      <div class="field">
+        <label>Сообщение пользователю / комментарий</label>
+        <textarea name="admin_comment" placeholder="Инструкция по передаче коинов, уточняющий вопрос, причина отклонения и т.д."></textarea>
+      </div>
+      <div class="bj-actions">
+        <button class="btn ghost" name="action" value="comment">Отправить комментарий</button>
+        {% if req.status == 'pending' or req.status == 'awaiting' %}
+          {% if req.kind == 'deposit' and req.status == 'pending' %}
+            <button class="btn ghost" name="action" value="send_instructions">Отправить инструкцию</button>
+          {% endif %}
+          <button class="btn" name="action" value="confirm">
+            {% if req.kind == 'deposit' %}Подтвердить и начислить{% else %}Подтвердить вывод{% endif %}
+          </button>
+          <button class="btn danger" name="action" value="reject">Отклонить</button>
+        {% endif %}
+      </div>
+      <p class="helper" style="margin-top:12px">«Отправить комментарий» не меняет статус — можно уточнить детали у пользователя до подтверждения.</p>
+      {% if req.kind == 'withdraw' and req.status != 'completed' and req.status != 'rejected' %}<p class="helper">Коины уже заморожены. Подтверждение фиксирует выдачу в игре; отклонение вернёт их на баланс.</p>{% endif %}
+    </form>
+    {% if req.status != 'pending' and req.status != 'awaiting' %}
+      <p class="helper" style="margin-top:12px">Заявка закрыта{% if req.processed_by %} · обработал {{ req.processed_by.username }}{% endif %}.</p>
+    {% endif %}
+
+    {% if sent_messages %}
+    <h2>Отправленные сообщения</h2>
+    {% for m in sent_messages %}
+      <div class="msg-item">
+        <time>{{ m.created_at|date:"d.m.Y H:i" }}{% if not m.is_read %} · не прочитано{% endif %}</time>
+        {{ m.text|linebreaksbr }}
+      </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

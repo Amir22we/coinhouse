@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Профиль — Coinhouse{% endblock %}
+{% block content %}
+<h1>Профиль</h1>
+<p class="sub">Логин: <b>{{ user.username }}</b> · регистрация {{ user.date_joined|date:"d.m.Y" }} · всего коинов: <span class="mono" style="color:var(--gold)">{{ total }}</span></p>
+<div class="grid cols-2">
+  <div class="card">
+    <h2 style="margin-top:0">Баланс</h2>
+    {% for b in balances %}
+      <div class="balance-row"><span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span> {{ b.coin.name }} <span class="amt">{{ b.amount }}</span></div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">История операций</h2>
+    {% if transactions %}
+    <table>
+      <tr><th>Дата</th><th>Операция</th><th>Изменение</th></tr>
+      {% for t in transactions %}
+      <tr>
+        <td class="mono">{{ t.created_at|date:"d.m H:i" }}</td>
+        <td>{{ t.reason }}</td>
+        <td class="mono" style="color:{% if t.delta > 0 %}var(--green){% else %}var(--red){% endif %}">{% if t.delta > 0 %}+{% endif %}{{ t.delta }} {{ t.coin.code }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="helper">Операций пока не было.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Сообщения — Coinhouse{% endblock %}
+{% block content %}
+<h1>Сообщения</h1>
+<p class="sub">Инструкции по заявкам и уведомления от администрации.</p>
+{% for m in msgs %}
+  <div class="msg-item">
+    <time>{{ m.created_at|date:"d.m.Y H:i" }}{% if m.related_request %} · заявка #{{ m.related_request_id }}{% endif %}</time>
+    {{ m.text|linebreaksbr }}
+  </div>
+{% empty %}
+  <div class="card helper">Сообщений нет. Они появятся, когда администрация ответит на твою заявку.</div>
+{% endfor %}
+{% endblock %}

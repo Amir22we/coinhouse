@@ -1,0 +1,63 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Coinhouse{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700&family=Manrope:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<header class="site">
+  <div class="container nav">
+    <a class="logo" href="{% url 'home' %}"><span class="suit">♠</span> COINHOUSE</a>
+    <button class="nav-toggle" type="button" aria-label="Меню" aria-expanded="false" aria-controls="nav-menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-menu" id="nav-menu">
+    <nav class="nav-links">
+      <a href="{% url 'games' %}" {% if '/games' in request.path %}class="active"{% endif %}>Игры</a>
+      <a href="{% url 'deposit' %}" {% if '/deposit' in request.path %}class="active"{% endif %}>Пополнение</a>
+      <a href="{% url 'withdraw' %}" {% if '/withdraw' in request.path %}class="active"{% endif %}>Вывод</a>
+      <a href="{% url 'info' %}" {% if '/info' in request.path %}class="active"{% endif %}>Информация</a>
+      <a href="{% url 'help' %}" {% if '/help' in request.path %}class="active"{% endif %}>Помощь</a>
+    </nav>
+    <span class="spacer"></span>
+    <nav class="nav-links">
+      {% if user.is_authenticated %}
+        <a href="{% url 'inbox' %}">Сообщения{% if unread_count %} <span class="badge-dot">{{ unread_count }}</span>{% endif %}</a>
+        <a href="{% url 'dashboard' %}">Кабинет</a>
+        {% if user.is_staff %}<a href="{% url 'panel_home' %}" style="color:var(--gold)">Админ</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}
+          <button class="btn ghost sm" type="submit">Выйти</button>
+        </form>
+      {% else %}
+        <a href="{% url 'login' %}">Вход</a>
+        <a class="btn sm" href="{% url 'register' %}">Регистрация</a>
+      {% endif %}
+    </nav>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="container">
+    {% for m in messages %}<div class="flash {{ m.tags }}">{{ m }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+<footer class="site">Coinhouse — обмен карт. Проблемы или вопросы: <a href="https://t.me/new26qwerty" target="_blank" rel="noopener">@new26qwerty</a> в Телеграме.</footer>
+<script>
+(function(){
+  var btn=document.querySelector('.nav-toggle'),menu=document.getElementById('nav-menu');
+  if(!btn||!menu)return;
+  btn.addEventListener('click',function(){
+    var open=menu.classList.toggle('open');
+    btn.classList.toggle('open',open);
+    btn.setAttribute('aria-expanded',open);
+  });
+})();
+</script>
+</body>
+</html>

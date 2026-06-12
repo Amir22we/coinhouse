@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Игры — Coinhouse{% endblock %}
+{% block content %}
+<h1>Игры</h1>
+<p class="sub">Пока за столом одна игра скоро будет больше.</p>
+<div class="grid cols-3">
+  <a class="card" href="{% url 'blackjack' %}" style="text-decoration:none;color:var(--cream)">
+    <div style="font-size:40px">♠ ♥</div>
+    <h2 style="margin:10px 0 6px">Блекджек</h2>
+    <p class="helper">Классика против стола. Ставка от 3 коинов, ранги можно смешивать. Выплата 1:1.</p>
+  </a>
+  <div class="card" style="opacity:.5">
+    <div style="font-size:40px">🎰</div>
+    <h2 style="margin:10px 0 6px">Скоро</h2>
+    <p class="helper">Следующая игра в разработке.</p>
+  </div>
+</div>
+{% endblock %}

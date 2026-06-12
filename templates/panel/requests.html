@@ -1,0 +1,43 @@
+{% extends 'panel/base.html' %}
+{% block title %}Заявки — Админ{% endblock %}
+{% block content %}
+<h1>Заявки</h1>
+<div class="filter-bar">
+  <a href="?" class="{% if not kind and not status %}on{% endif %}">Все</a>
+  <a href="?kind=deposit" class="{% if kind == 'deposit' %}on{% endif %}">Пополнения</a>
+  <a href="?kind=withdraw" class="{% if kind == 'withdraw' %}on{% endif %}">Выводы</a>
+  <a href="?status=pending" class="{% if status == 'pending' %}on{% endif %}">Ожидают</a>
+  <a href="?status=awaiting" class="{% if status == 'awaiting' %}on{% endif %}">Ждут оплату</a>
+  <a href="?status=completed" class="{% if status == 'completed' %}on{% endif %}">Завершены</a>
+</div>
+<div class="card">
+<table>
+  <tr><th>№</th><th>Дата</th><th>Пользователь</th><th>Тип</th><th>Коины</th><th>Статус</th><th>Быстрые действия</th><th></th></tr>
+  {% for r in reqs %}
+  <tr>
+    <td class="mono">#{{ r.id }}</td>
+    <td class="mono">{{ r.created_at|date:"d.m H:i" }}</td>
+    <td>{{ r.user.username }}</td>
+    <td>{{ r.get_kind_display }}</td>
+    <td class="mono">{{ r.items_display }}</td>
+    <td><span class="status {{ r.status }}">{{ r.get_status_display }}</span></td>
+    <td>
+      {% if r.status == 'pending' or r.status == 'awaiting' %}
+      <div class="quick-actions">
+        <form method="post" action="{% url 'panel_request_detail' r.id %}">{% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="btn sm" name="action" value="confirm" title="Подтвердить">✓</button>
+        </form>
+        <form method="post" action="{% url 'panel_request_detail' r.id %}">{% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="btn danger sm" name="action" value="reject" title="Отклонить">✗</button>
+        </form>
+      </div>
+      {% endif %}
+    </td>
+    <td><a href="{% url 'panel_request_detail' r.id %}">Открыть</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="8" class="helper">Ничего не найдено.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

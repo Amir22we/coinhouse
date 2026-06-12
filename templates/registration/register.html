@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Регистрация — Coinhouse{% endblock %}
+{% block content %}
+<div style="max-width:420px;margin:0 auto">
+<h1>Регистрация</h1>
+<p class="sub">Аккаунт нужен для баланса, заявок и игры.</p>
+<form method="post" class="card">{% csrf_token %}
+  {% for field in form %}
+    <div class="field">
+      <label>{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="helper" style="color:var(--red)">{{ field.errors.0 }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <button class="btn" type="submit" style="width:100%">Создать аккаунт</button>
+  <p class="helper" style="margin-top:12px;text-align:center">Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a></p>
+</form>
+</div>
+{% endblock %}

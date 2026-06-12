@@ -1,0 +1,52 @@
+{% extends 'panel/base.html' %}
+{% block title %}Экономика — Админ{% endblock %}
+{% block content %}
+<h1>Экономика</h1>
+<p class="sub">Все коины на сайте, заработок биржи и результаты игроков в блекджеке.</p>
+
+<div class="grid cols-2">
+  <div class="card">
+    <div class="panel-stat">{{ total_players }}</div>
+    <div class="panel-stat-label">коинов на руках у игроков</div>
+  </div>
+  <div class="card">
+    <div class="panel-stat {% if total_house >= 0 %}pos{% else %}neg{% endif %}">{% if total_house > 0 %}+{% endif %}{{ total_house }}</div>
+    <div class="panel-stat-label">коинов заработала биржа (блекджек)</div>
+  </div>
+</div>
+
+<h2>По рангам</h2>
+<div class="card">
+<table>
+  <tr><th>Ранг</th><th>У игроков</th><th>Биржа</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td><span class="chip sm" data-c="{{ r.coin.code }}">{{ r.coin.code }}</span></td>
+    <td class="mono">{{ r.players }}</td>
+    <td class="mono" style="color:{% if r.house > 0 %}var(--green){% elif r.house < 0 %}var(--red){% else %}var(--muted){% endif %}">{% if r.house > 0 %}+{% endif %}{{ r.house }}</td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <td><b>Итого</b></td>
+    <td class="mono"><b>{{ total_players }}</b></td>
+    <td class="mono"><b>{% if total_house > 0 %}+{% endif %}{{ total_house }}</b></td>
+  </tr>
+</table>
+</div>
+
+<h2>Кто сколько проиграл</h2>
+<div class="card">
+<table>
+  <tr><th>Игрок</th><th>Итог в блекджеке</th><th></th></tr>
+  {% for p in players %}
+  <tr>
+    <td>{{ p.username }}</td>
+    <td class="mono" style="color:{% if p.lost > 0 %}var(--red){% elif p.lost < 0 %}var(--green){% else %}var(--muted){% endif %}">
+      {% if p.lost > 0 %}проиграл {{ p.lost }}{% elif p.lost < 0 %}выиграл {{ p.lost|stringformat:"d"|slice:"1:" }}{% else %}в нуле{% endif %}
+    </td>
+    <td><a href="{% url 'panel_user_detail' p.id %}">Открыть</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="3" class="helper">В блекджек ещё никто не играл.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

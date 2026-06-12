@@ -1,0 +1,54 @@
+{% extends 'panel/base.html' %}
+{% block title %}{{ target.username }} — Админ{% endblock %}
+{% block content %}
+<h1>{{ target.username }}</h1>
+<p class="sub">ID {{ target.id }} · регистрация {{ target.date_joined|date:"d.m.Y" }}</p>
+<div class="grid cols-2">
+  <div class="card">
+    <h2 style="margin-top:0">Баланс</h2>
+    <div class="balance-grid">
+      {% for b in balances %}
+        <div class="balance-cell"><span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span><span class="amt">{{ b.amount }}</span></div>
+      {% endfor %}
+    </div>
+    <h2>Последние операции</h2>
+    <table>
+      {% for t in transactions %}
+      <tr>
+        <td class="mono">{{ t.created_at|date:"d.m H:i" }}</td>
+        <td>{{ t.reason|truncatechars:34 }}</td>
+        <td class="mono" style="color:{% if t.delta > 0 %}var(--green){% else %}var(--red){% endif %}">{% if t.delta > 0 %}+{% endif %}{{ t.delta }} {{ t.coin.code }}</td>
+      </tr>
+      {% empty %}<tr><td class="helper">Операций нет.</td></tr>{% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Изменить баланс</h2>
+    <form method="post">{% csrf_token %}
+      <div class="coin-input-grid">
+        {% for b in balances %}
+          <div class="coin-input"><span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span><input type="number" min="0" step="1" name="adj_{{ b.coin.code }}" placeholder="0"></div>
+        {% endfor %}
+      </div>
+      <div class="field"><label>Причина / текст сообщения</label><input type="text" name="note" maxlength="120" placeholder="Например: ручное начисление по заявке #12"></div>
+      <div class="bj-actions">
+        <button class="btn" name="action" value="credit">Начислить</button>
+        <button class="btn danger" name="action" value="debit">Списать</button>
+        <button class="btn ghost" name="action" value="message">Отправить сообщение</button>
+      </div>
+    </form>
+    <h2>Заявки</h2>
+    <table>
+      {% for r in reqs %}
+      <tr>
+        <td class="mono">#{{ r.id }}</td>
+        <td>{{ r.get_kind_display }}</td>
+        <td class="mono">{{ r.items_display|truncatechars:24 }}</td>
+        <td><span class="status {{ r.status }}">{{ r.get_status_display }}</span></td>
+        <td><a href="{% url 'panel_request_detail' r.id %}">→</a></td>
+      </tr>
+      {% empty %}<tr><td class="helper">Заявок нет.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}
