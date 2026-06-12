@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-fm+y@55ctiy9ni2!qh57l(fdpt86mtoipvg1_(vncy--edl@-*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']  # для разработки; в проде укажи свой домен
+CSRF_TRUSTED_ORIGINS = ['https://coinhouse.mrrooty.dev']  # для разработки; в проде укажи свой домен
 
 
 # Application definition
