@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-fm+y@55ctiy9ni2!qh57l(fdpt86mtoipvg1_(vncy--edl@-*
 DEBUG = False
 
 CSRF_TRUSTED_ORIGINS = ['https://coinhouse.mrrooty.dev']  # для разработки; в проде укажи свой домен
-
+ALLOWED_HOSTS = ['coinhouse.mrrooty.dev', 'localhost', '127.0.0.1']
 
 # Application definition
 
