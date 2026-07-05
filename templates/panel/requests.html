@@ -10,8 +10,8 @@
   <a href="?status=awaiting" class="{% if status == 'awaiting' %}on{% endif %}">Ждут оплату</a>
   <a href="?status=completed" class="{% if status == 'completed' %}on{% endif %}">Завершены</a>
 </div>
-<div class="card">
-<table>
+<div class="card table-wrap">
+<table class="panel-table">
   <tr><th>№</th><th>Дата</th><th>Пользователь</th><th>Тип</th><th>Коины</th><th>Статус</th><th>Быстрые действия</th><th></th></tr>
   {% for r in reqs %}
   <tr>

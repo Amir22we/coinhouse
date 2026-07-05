@@ -122,6 +122,25 @@ class CoinRequest(models.Model):
         return sum(self.items.values())
 
 
+class Duel(models.Model):
+    """История дуэли (блекджек 1-на-1). Игра зеро-сумма между игроками."""
+    player1 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                null=True, related_name="duels_as_p1")
+    player2 = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                null=True, related_name="duels_as_p2")
+    winner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                               null=True, blank=True, related_name="duels_won")  # null = ничья
+    bet = models.JSONField(default=dict)
+    forfeit = models.BooleanField(default=False)  # победа из-за выхода соперника
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def bet_display(self):
+        return ", ".join(f"{v} {k}" for k, v in self.bet.items() if v)
+
+
 class Message(models.Model):
     """Сообщение пользователю от администрации (видно на сайте)."""
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="site_messages")

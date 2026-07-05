@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% block title %}Дуэль — Coinhouse{% endblock %}
+{% block content %}
+<h1>Дуэль <span class="suit" aria-hidden="true">♠</span> <span class="chip sm" style="vertical-align:middle">PvP</span></h1>
+<p class="sub">Блекджек один-на-один против живого соперника. Нажми «Играть» — найдём оппонента онлайн. Без дилера: чья рука ближе к 21 (не перебрав), тот забирает банк (×2). Перебор — проигрыш, равные руки — возврат. Минимум {{ min_bet }} коина, ранги можно смешивать.</p>
+
+<div id="duel-error" class="flash error" style="display:none"></div>
+
+<!-- 1. Ставка -->
+<form id="bet-form" class="card">
+  <h2 style="margin-top:0">Сделай ставку</h2>
+  <p class="helper">Соперника ищем по <b>точному составу ставки</b> — оба игрока должны поставить одинаковые ранги и суммы. Банк всегда симметричен (×2).</p>
+  <div class="coin-input-grid">
+    {% for b in balances %}
+      <div class="coin-input" {% if b.amount == 0 %}style="opacity:.45"{% endif %}>
+        <span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span>
+        <span class="helper mono">{{ b.amount }}</span>
+        <input type="number" min="0" max="{{ b.amount }}" step="1" data-code="{{ b.coin.code }}" placeholder="0" {% if b.amount == 0 %}disabled{% endif %}>
+      </div>
+    {% endfor %}
+  </div>
+  <button class="btn btn-with-icon" type="submit">
+    <span class="icon-swords sm" aria-hidden="true"></span>
+    <span>Играть</span>
+  </button>
+</form>
+
+<!-- 2. Поиск -->
+<div id="searching" class="card" style="display:none;text-align:center">
+  <div class="pulse" style="display:flex;justify-content:center;margin-bottom:8px">
+    <span class="icon-search" aria-hidden="true"></span>
+  </div>
+  <h2 style="margin:10px 0 6px">Ищем соперника…</h2>
+  <p class="helper">Ставка: <span class="mono" style="color:var(--gold)" id="search-bet"></span> — заморожена. Как только кто-то поставит так же, начнём.</p>
+  <button class="btn ghost" id="cancel-btn" type="button">Отменить</button>
+</div>
+
+<!-- 3. Стол -->
+<div id="table" class="table-felt" style="display:none">
+  <div class="hand-label">Соперник <span id="opp-name" class="mono"></span> <span id="opp-status" class="helper"></span> <span class="val" id="opp-value" style="display:none"></span></div>
+  <div class="hand" id="opp-hand"></div>
+
+  <div class="hand-label" style="margin-top:24px">Твоя рука <span class="val" id="my-value"></span></div>
+  <div class="hand" id="my-hand"></div>
+
+  <p class="helper" style="margin-top:16px">Банк: <span class="mono" style="color:var(--gold)" id="pot"></span></p>
+
+  <div id="result-box" style="display:none"></div>
+
+  <div class="bj-actions" id="actions">
+    <button class="btn" id="hit-btn" type="button">Взять карту</button>
+    <button class="btn ghost" id="stand-btn" type="button">Хватит</button>
+  </div>
+  <button class="btn" id="again-btn" type="button" style="display:none">Новая игра</button>
+</div>
+
+{% if recent %}
+<h2 style="margin-top:32px">Последние дуэли</h2>
+<div class="card">
+  <table class="tbl">
+    <tr><th>Соперники</th><th>Ставка</th><th>Итог</th></tr>
+    {% for d in recent %}
+    <tr>
+      <td>{{ d.player1.username|default:'—' }} vs {{ d.player2.username|default:'—' }}</td>
+      <td class="mono">{{ d.bet_display }}</td>
+      <td>
+        {% if not d.winner %}Ничья
+        {% elif d.winner == user %}<span style="color:var(--gold)">Победа{% if d.forfeit %} (соперник вышел){% endif %}</span>
+        {% else %}Поражение{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<script>
+(function(){
+  var ws=null;
+  var bet=null;
+  var betForm=document.getElementById('bet-form');
+  var searching=document.getElementById('searching');
+  var table=document.getElementById('table');
+  var errBox=document.getElementById('duel-error');
+
+  function show(el){betForm.style.display=table.style.display=searching.style.display='none'; el.style.display=el===table?'block':'block';}
+  function err(msg){errBox.textContent=msg; errBox.style.display='block'; setTimeout(function(){errBox.style.display='none';},5000);}
+  function betStr(b){return Object.keys(b).map(function(k){return b[k]+' '+k;}).join(', ');}
+
+  function card(c,hidden){
+    if(hidden){return '<div class="pcard back"></div>';}
+    var red=(c.s==='♥'||c.s==='♦')?' red':'';
+    return '<div class="pcard'+red+'"><span>'+c.r+'</span><span class="suit">'+c.s+'</span></div>';
+  }
+  function renderHand(el,cards,allHidden){
+    el.innerHTML=cards.map(function(c){return card(c,allHidden);}).join('');
+  }
+
+  function connect(){
+    if(ws && (ws.readyState===0||ws.readyState===1))return;
+    var proto=location.protocol==='https:'?'wss':'ws';
+    ws=new WebSocket(proto+'://'+location.host+'/ws/duel/');
+    ws.onmessage=function(e){onMsg(JSON.parse(e.data));};
+    ws.onclose=function(){
+      if(searching.style.display!=='none'){
+        err('Соединение с сервером потеряно. Обновите страницу и попробуйте снова.');
+        show(betForm);
+      }
+    };
+    ws.onerror=function(){err('Не удалось подключиться к серверу дуэли.');};
+  }
+  function sendWhenReady(obj){
+    if(ws.readyState===1){ws.send(JSON.stringify(obj));}
+    else{ws.addEventListener('open',function h(){ws.send(JSON.stringify(obj));ws.removeEventListener('open',h);});}
+  }
+
+  // --- старт поиска ---
+  betForm.addEventListener('submit',function(ev){
+    ev.preventDefault();
+    bet={};
+    betForm.querySelectorAll('input[data-code]').forEach(function(i){
+      var v=parseInt(i.value,10);
+      if(v>0){bet[i.dataset.code]=v;}
+    });
+    var total=Object.values(bet).reduce(function(a,b){return a+b;},0);
+    if(total<{{ min_bet }}){err('Минимальная ставка — {{ min_bet }} коина.');return;}
+    document.getElementById('search-bet').textContent=betStr(bet);
+    show(searching);
+    connect();
+    sendWhenReady({action:'queue',bet:bet});
+  });
+
+  document.getElementById('cancel-btn').addEventListener('click',function(){
+    sendWhenReady({action:'cancel'});
+  });
+  document.getElementById('hit-btn').addEventListener('click',function(){sendWhenReady({action:'hit'});});
+  document.getElementById('stand-btn').addEventListener('click',function(){sendWhenReady({action:'stand'});});
+  document.getElementById('again-btn').addEventListener('click',function(){
+    document.getElementById('result-box').style.display='none';
+    betForm.querySelectorAll('input[data-code]').forEach(function(i){i.value='';});
+    show(betForm);
+  });
+
+  // --- приём сообщений ---
+  function renderTable(s){
+    show(table);
+    // соперник
+    document.getElementById('opp-name').textContent=s.opponent.username;
+    var oppHand=document.getElementById('opp-hand');
+    var oppVal=document.getElementById('opp-value');
+    var oppStatus=document.getElementById('opp-status');
+    if(s.finished && s.opponent.hand){
+      renderHand(oppHand,s.opponent.hand,false);
+      oppVal.textContent=s.opponent.busted?(s.opponent.value+' — перебор'):s.opponent.value;
+      oppVal.style.display='inline'; oppStatus.textContent='';
+    }else{
+      // рубашки по числу карт
+      var backs=[];for(var i=0;i<s.opponent.cards;i++){backs.push({});}
+      renderHand(oppHand,backs,true);
+      oppVal.style.display='none';
+      oppStatus.textContent=s.opponent.done?'— готов':'— думает…';
+    }
+    // моя рука
+    renderHand(document.getElementById('my-hand'),s.me.hand,false);
+    document.getElementById('my-value').textContent=s.me.busted?(s.me.value+' — перебор!'):s.me.value;
+    document.getElementById('pot').textContent=betStr(s.bet)+'  →  '+Object.keys(s.bet).map(function(k){return (s.bet[k]*2)+' '+k;}).join(', ');
+    // кнопки
+    var acts=document.getElementById('actions');
+    var again=document.getElementById('again-btn');
+    if(s.finished){acts.style.display='none';again.style.display='inline-block';}
+    else{acts.style.display='flex';again.style.display='none';
+      document.getElementById('hit-btn').disabled=!s.me.can_act;
+      document.getElementById('stand-btn').disabled=!s.me.can_act;
+    }
+  }
+
+  function onMsg(m){
+    switch(m.type){
+      case 'queued': /* уже показываем поиск */ break;
+      case 'cancelled': show(betForm); break;
+      case 'matched': renderTable(m.state); break;
+      case 'update': renderTable(m.state); break;
+      case 'result':
+        renderTable(m.state);
+        var rb=document.getElementById('result-box');
+        var cls=m.outcome==='win'?'win':(m.outcome==='push'?'push':'lose');
+        var txt=m.outcome==='win'?'Победа — банк зачислен!':(m.outcome==='push'?'Ничья — ставка возвращена':'Поражение — ставка списана');
+        rb.className='bj-result '+cls; rb.textContent=txt; rb.style.display='block';
+        break;
+      case 'error': err(m.msg);
+        if(searching.style.display!=='none')show(betForm);
+        break;
+    }
+  }
+
+  window.addEventListener('beforeunload',function(){if(ws)ws.close();});
+})();
+</script>
+{% endblock %}

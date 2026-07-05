@@ -23,9 +23,12 @@ urlpatterns = [
     path("requests/", views.my_requests, name="requests"),
 
     path("games/", views.games, name="games"),
+    path("games/duel/", views.duel_view, name="duel"),
     path("games/blackjack/", views.blackjack_view, name="blackjack"),
     path("games/blackjack/bet/", views.blackjack_bet, name="blackjack_bet"),
     path("games/blackjack/<str:action>/", views.blackjack_action, name="blackjack_action"),
+    path("games/slots/", views.slots_view, name="slots"),
+    path("games/slots/spin/", views.slots_spin, name="slots_spin"),
 
     path("panel/", views.panel_home, name="panel_home"),
     path("panel/requests/", views.panel_requests, name="panel_requests"),

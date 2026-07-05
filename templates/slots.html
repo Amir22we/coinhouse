@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block title %}Слот — Coinhouse{% endblock %}
+{% block content %}
+<div class="slot-page">
+  <div class="slot-page-head">
+    <div class="eyebrow">Coinhouse · slots</div>
+    <h1>Слот-аппарат</h1>
+    <p class="sub">Три одинаковые цифры на линии — выигрыш ×2. Минимум {{ min_bet }} коина.</p>
+  </div>
+
+  <div class="slot-arena">
+    <div class="slot-machine" id="slot-machine">
+      <div class="slot-crown">COINHOUSE</div>
+
+      <div class="slot-marquee" aria-hidden="true">
+        <div class="slot-marquee-track">
+          <span>777</span><span>JACKPOT</span><span>×2</span><span>777</span><span>JACKPOT</span><span>×2</span>
+        </div>
+      </div>
+
+      <div class="slot-lights" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+
+      <div class="slot-cabinet-body">
+        <div class="slot-window">
+          <div class="slot-payline" aria-hidden="true"></div>
+          <div class="slot-reels" id="slot-reels">
+            <div class="slot-reel" data-i="0"><div class="slot-strip"><span class="slot-symbol" data-v="7">7</span></div></div>
+            <div class="slot-reel" data-i="1"><div class="slot-strip"><span class="slot-symbol" data-v="7">7</span></div></div>
+            <div class="slot-reel" data-i="2"><div class="slot-strip"><span class="slot-symbol" data-v="7">7</span></div></div>
+          </div>
+          <div class="slot-outcome" id="slot-outcome" hidden>
+            <div class="slot-outcome-card" id="slot-outcome-card">
+              <div class="slot-outcome-title" id="slot-outcome-title"></div>
+              <div class="slot-outcome-sub" id="slot-outcome-sub"></div>
+            </div>
+          </div>
+        </div>
+        <div class="slot-particles" id="slot-particles" aria-hidden="true"></div>
+      </div>
+
+      <div class="slot-lever-hint helper">Барабаны останавливаются по очереди — третий замедляется</div>
+    </div>
+
+    <form method="post" action="{% url 'slots_spin' %}" class="slot-panel card" id="slot-form">{% csrf_token %}
+      <h2>Ставка</h2>
+      <p class="helper">Смешивай ранги. После спина можно крутить снова.</p>
+      <div class="coin-input-grid">
+        {% for b in balances %}
+          <div class="coin-input" {% if b.amount == 0 %}style="opacity:.45"{% endif %}>
+            <span class="chip sm" data-c="{{ b.coin.code }}">{{ b.coin.code }}</span>
+            <span class="helper mono">{{ b.amount }}</span>
+            <input type="number" min="0" max="{{ b.amount }}" step="1" name="bet_{{ b.coin.code }}" placeholder="0" {% if b.amount == 0 %}disabled{% endif %}>
+          </div>
+        {% endfor %}
+      </div>
+      <button class="btn slot-spin-btn btn-with-icon" type="submit" id="spin-btn">
+        <span class="icon-slot-mini sm" aria-hidden="true"><span>7</span><span>7</span><span>7</span></span>
+        <span class="slot-spin-label">Крутить</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if last %}{{ last|json_script:"slots-last" }}{% endif %}
+<script>
+(function(){
+  var DIGITS = ["0","1","2","3","4","5","6","7","8","9"];
+  var reelsRoot = document.getElementById("slot-reels");
+  var reelEls = reelsRoot ? reelsRoot.querySelectorAll(".slot-reel") : [];
+  var machine = document.getElementById("slot-machine");
+  var outcome = document.getElementById("slot-outcome");
+  var outcomeCard = document.getElementById("slot-outcome-card");
+  var outcomeTitle = document.getElementById("slot-outcome-title");
+  var outcomeSub = document.getElementById("slot-outcome-sub");
+  var particles = document.getElementById("slot-particles");
+  var form = document.getElementById("slot-form");
+  var spinBtn = document.getElementById("spin-btn");
+  var spinLabel = spinBtn && spinBtn.querySelector(".slot-spin-label");
+  var dataEl = document.getElementById("slots-last");
+  var spinning = false;
+
+  /* Барабан 1 — быстро. 2 — быстро. 3 — длинный разгон и плавная остановка. */
+  var REELS = [
+    { cycles: 4, duration: 1.05, easing: "cubic-bezier(.25,.95,.35,1)" },
+    { cycles: 5, duration: 1.35, easing: "cubic-bezier(.22,.92,.32,1)" },
+    { cycles: 7, duration: 2.75, easing: "cubic-bezier(.08,.75,.12,1)" }
+  ];
+
+  function reelH(){
+    if(!reelsRoot) return 140;
+    var h = parseInt(getComputedStyle(reelsRoot).getPropertyValue("--slot-reel-h"), 10);
+    return h > 0 ? h : 140;
+  }
+
+  function symHtml(v){
+    return '<span class="slot-symbol" data-v="'+v+'">'+v+'</span>';
+  }
+
+  function settleReel(reel, symbol){
+    var strip = reel.querySelector(".slot-strip");
+    strip.style.transition = "none";
+    strip.style.transform = "none";
+    strip.innerHTML = symHtml(symbol);
+    reel.classList.remove("spinning","spin-slow");
+    reel.classList.add("stopped");
+  }
+
+  /* Полоса: несколько полных циклов 0→9, потом финальная цифра */
+  function buildStrip(final, cycles){
+    var items = [];
+    var i, d, c;
+    for(i = 0; i < 2; i++) items.push(DIGITS[Math.floor(Math.random() * 10)]);
+    for(c = 0; c < cycles; c++){
+      for(d = 0; d < 10; d++) items.push(DIGITS[d]);
+    }
+    for(i = 0; i < 3; i++) items.push(DIGITS[Math.floor(Math.random() * 10)]);
+    items.push(final);
+    return items;
+  }
+
+  function spinReel(reel, final, cfg){
+    return new Promise(function(resolve){
+      var strip = reel.querySelector(".slot-strip");
+      var symbols = buildStrip(final, cfg.cycles);
+      var h = reelH();
+      var isSlow = reel.getAttribute("data-i") === "2";
+
+      strip.innerHTML = symbols.map(symHtml).join("");
+      strip.style.transition = "none";
+      strip.style.transform = "translateY(0)";
+      reel.classList.add("spinning");
+      if(isSlow) reel.classList.add("spin-slow");
+      reel.classList.remove("stopped","win-glow");
+      void reel.offsetHeight;
+
+      var dist = h * (symbols.length - 1);
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          strip.style.transition = "transform "+cfg.duration+"s "+cfg.easing;
+          strip.style.transform = "translateY(-"+dist+"px)";
+        });
+      });
+
+      setTimeout(function(){
+        settleReel(reel, final);
+        reel.classList.add("landed");
+        setTimeout(function(){ reel.classList.remove("landed"); }, 320);
+        resolve();
+      }, cfg.duration * 1000 + 80);
+    });
+  }
+
+  function burstParticles(){
+    if(!particles) return;
+    particles.innerHTML = "";
+    for(var i = 0; i < 32; i++){
+      var p = document.createElement("span");
+      p.className = "slot-particle";
+      p.style.setProperty("--a", (Math.random() * 360) + "deg");
+      p.style.setProperty("--d", (50 + Math.random() * 110) + "px");
+      p.style.setProperty("--t", (0.6 + Math.random() * 0.8) + "s");
+      particles.appendChild(p);
+    }
+  }
+
+  function hideOutcome(){
+    if(outcome) outcome.hidden = true;
+    outcomeCard.className = "slot-outcome-card";
+    machine.classList.remove("slot-celebrate","slot-lose");
+    if(particles) particles.innerHTML = "";
+  }
+
+  function showOutcome(data){
+    if(data.won){
+      outcomeTitle.textContent = "Победа!";
+      outcomeSub.textContent = data.reels.join(" · ") + " — выигрыш ×2 (" + data.bet_display + ")";
+      outcomeCard.className = "slot-outcome-card win";
+      machine.classList.add("slot-celebrate");
+      reelEls.forEach(function(r){ r.classList.add("win-glow"); });
+      burstParticles();
+    } else {
+      outcomeTitle.textContent = "Не повезло";
+      outcomeSub.textContent = data.reels.join(" · ") + " — попробуй ещё раз";
+      outcomeCard.className = "slot-outcome-card lose";
+      machine.classList.add("slot-lose");
+    }
+    outcome.hidden = false;
+  }
+
+  async function playSpin(data){
+    if(spinning || !data || !data.reels) return;
+    spinning = true;
+    hideOutcome();
+    if(spinBtn) spinBtn.disabled = true;
+    if(spinLabel) spinLabel.textContent = "Крутим…";
+    reelEls.forEach(function(r){
+      r.classList.remove("stopped","win-glow","landed");
+    });
+
+    await spinReel(reelEls[0], data.reels[0], REELS[0]);
+    await spinReel(reelEls[1], data.reels[1], REELS[1]);
+    await spinReel(reelEls[2], data.reels[2], REELS[2]);
+
+    showOutcome(data);
+    spinning = false;
+    if(spinBtn) spinBtn.disabled = false;
+    if(spinLabel) spinLabel.textContent = "Крутить снова";
+  }
+
+  function boot(){
+    reelEls.forEach(function(r){
+      var sym = r.querySelector(".slot-symbol");
+      if(sym) settleReel(r, sym.getAttribute("data-v") || "7");
+    });
+    if(dataEl){
+      try { playSpin(JSON.parse(dataEl.textContent)); }
+      catch(e) {}
+    }
+  }
+
+  if(document.readyState === "complete") boot();
+  else window.addEventListener("load", boot);
+
+  if(form){
+    form.addEventListener("submit", function(){
+      if(spinBtn) spinBtn.disabled = true;
+      if(spinLabel) spinLabel.textContent = "Крутим…";
+      hideOutcome();
+      reelEls.forEach(function(r){
+        r.classList.add("spinning");
+        r.classList.remove("stopped","win-glow","landed");
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

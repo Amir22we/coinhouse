@@ -6,8 +6,8 @@
   <input type="text" name="q" value="{{ q }}" placeholder="Поиск по логину" style="max-width:260px">
   <button class="btn sm" type="submit">Найти</button>
 </form>
-<div class="card">
-<table>
+<div class="card table-wrap">
+<table class="panel-table">
   <tr><th>ID</th><th>Логин</th><th>Регистрация</th><th>Коинов</th><th>Статус</th><th></th></tr>
   {% for u in users %}
   <tr>

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-fm+y@55ctiy9ni2!qh57l(fdpt86mtoipvg1_(vncy--edl@-*'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() in ('1', 'true', 'yes')
 
 CSRF_TRUSTED_ORIGINS = ['https://coinhouse.mrrooty.dev']  # для разработки; в проде укажи свой домен
 ALLOWED_HOSTS = ['coinhouse.mrrooty.dev', 'localhost', '127.0.0.1']
@@ -31,6 +32,8 @@ ALLOWED_HOSTS = ['coinhouse.mrrooty.dev', 'localhost', '127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  # должен быть выше staticfiles/admin — даёт ASGI runserver
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -70,6 +73,45 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+# Redis: канальный слой Channels (push) + очередь матчмейкинга + состояние дуэлей.
+# Всё разделяемое состояние живёт в Redis, не в памяти процесса — поэтому можно
+# масштабировать горизонтально (N воркеров Daphne за балансировщиком).
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/0')
+
+
+def _redis_available():
+    if os.environ.get('FORCE_MEMORY_KV', '').lower() in ('1', 'true', 'yes'):
+        return False
+    try:
+        import redis
+        client = redis.from_url(REDIS_URL, socket_connect_timeout=0.3)
+        client.ping()
+        client.close()
+        return True
+    except Exception:
+        return False
+
+
+REDIS_ENABLED = _redis_available()
+
+if REDIS_ENABLED:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+                'capacity': 1500,
+                'expiry': 30,
+            },
+        },
+    }
+else:
+    # Локально без Redis: in-memory channel layer (один процесс runserver).
+    CHANNEL_LAYERS = {
+        'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'},
+    }
 
 
 # Database
@@ -123,5 +165,5 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'home'
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG

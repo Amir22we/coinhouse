@@ -1,52 +1,114 @@
 {% extends 'panel/base.html' %}
 {% block title %}Экономика — Админ{% endblock %}
 {% block content %}
-<h1>Экономика</h1>
-<p class="sub">Все коины на сайте, заработок биржи и результаты игроков в блекджеке.</p>
+<h1>Экономика и игры</h1>
+<p class="sub">Статистика по блекджеку, слоту и дуэлям: кто, когда и сколько выиграл или проиграл.</p>
 
-<div class="grid cols-2">
-  <div class="card">
+<div class="panel-stat-grid">
+  <div class="card panel-stat-card">
     <div class="panel-stat">{{ total_players }}</div>
-    <div class="panel-stat-label">коинов на руках у игроков</div>
+    <div class="panel-stat-label">коинов у игроков</div>
   </div>
-  <div class="card">
+  <div class="card panel-stat-card">
     <div class="panel-stat {% if total_house >= 0 %}pos{% else %}neg{% endif %}">{% if total_house > 0 %}+{% endif %}{{ total_house }}</div>
-    <div class="panel-stat-label">коинов заработала биржа (блекджек)</div>
+    <div class="panel-stat-label">заработок биржи (блекджек + слот)</div>
+  </div>
+  <div class="card panel-stat-card">
+    <div class="panel-stat">{{ duel_count }}</div>
+    <div class="panel-stat-label">дуэлей сыграно</div>
   </div>
 </div>
 
-<h2>По рангам</h2>
-<div class="card">
-<table>
-  <tr><th>Ранг</th><th>У игроков</th><th>Биржа</th></tr>
+<h2>По играм</h2>
+<div class="panel-game-grid">
+  {% for g in games %}
+  <div class="card panel-game-card panel-game-{{ g.key }}">
+    <div class="panel-game-head">
+      <span class="panel-game-tag {{ g.key }}">{{ g.label }}</span>
+      <span class="panel-game-house {% if g.house >= 0 %}pos{% else %}neg{% endif %}">
+        {% if g.key == 'duel' %}
+          PvP
+        {% else %}
+          биржа {% if g.house > 0 %}+{% endif %}{{ g.house }}
+        {% endif %}
+      </span>
+    </div>
+    <dl class="panel-game-meta">
+      <div><dt>Игроков</dt><dd class="mono">{{ g.players_count }}</dd></div>
+      <div><dt>Операций</dt><dd class="mono">{{ g.tx_count }}</dd></div>
+      <div><dt>Ставки</dt><dd class="mono">{{ g.bets_volume }}</dd></div>
+      <div><dt>Выплаты</dt><dd class="mono">{{ g.payouts_volume }}</dd></div>
+    </dl>
+    <a class="btn ghost sm panel-game-link" href="?game={{ g.key }}">Подробнее →</a>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="filter-bar panel-filter">
+  <span class="helper panel-filter-label">Фильтр:</span>
+  <a href="?" class="{% if not game_filter %}on{% endif %}">Все игры</a>
+  {% for g in game_choices %}
+  <a href="?game={{ g.key }}" class="{% if game_filter == g.key %}on{% endif %}">{{ g.label }}</a>
+  {% endfor %}
+</div>
+
+<h2>Лента операций{% if game_filter %} · {% for g in game_choices %}{% if g.key == game_filter %}{{ g.label }}{% endif %}{% endfor %}{% endif %}</h2>
+<p class="helper">Последние ставки, выигрыши и возвраты{% if game_filter %} — только выбранная игра{% endif %}.</p>
+<div class="panel-feed">
+  {% for e in activity %}
+  <article class="panel-feed-item">
+    <div class="panel-feed-top">
+      <time class="panel-feed-time mono">{{ e.created_at|date:"d.m.Y H:i" }}</time>
+      <span class="panel-game-tag sm {{ e.game_key }}">{{ e.game_label }}</span>
+    </div>
+    <div class="panel-feed-body">
+      <a class="panel-feed-user" href="{% url 'panel_user_detail' e.user_id %}">{{ e.username }}</a>
+      <span class="panel-action-tag {{ e.action }}">{{ e.action_label }}</span>
+      <span class="panel-feed-amt mono {% if e.delta > 0 %}pos{% elif e.delta < 0 %}neg{% endif %}">
+        {% if e.delta > 0 %}+{% endif %}{{ e.delta }} <span class="chip sm" data-c="{{ e.coin }}">{{ e.coin }}</span>
+      </span>
+    </div>
+    <div class="panel-feed-reason helper">{{ e.reason }}</div>
+  </article>
+  {% empty %}
+  <div class="card helper">Пока нет игровых операций.</div>
+  {% endfor %}
+</div>
+
+<h2>Итог по игрокам</h2>
+<p class="helper">Сумма всех выигрышей и ставок{% if game_filter %} в выбранной игре{% else %} во всех играх{% endif %}. Минус — игрок в проигрыше.</p>
+<div class="panel-feed panel-feed-players">
+  {% for p in players %}
+  <article class="panel-feed-item panel-player-row">
+    <div class="panel-feed-top">
+      <a class="panel-feed-user" href="{% url 'panel_user_detail' p.id %}">{{ p.username }}</a>
+      {% if p.last_at %}<time class="panel-feed-time mono">последняя игра {{ p.last_at|date:"d.m.Y H:i" }}</time>{% endif %}
+    </div>
+    <div class="panel-feed-body">
+      <span class="helper">{{ p.tx_count }} оп.</span>
+      <span class="helper">ставки {{ p.bets }}</span>
+      <span class="helper">выплаты +{{ p.wins }}</span>
+      <span class="panel-feed-amt mono {% if p.net > 0 %}pos{% elif p.net < 0 %}neg{% endif %}">
+        {% if p.net > 0 %}+{% endif %}{{ p.net }} итог
+      </span>
+    </div>
+  </article>
+  {% empty %}
+  <div class="card helper">Нет данных по игрокам.</div>
+  {% endfor %}
+</div>
+
+<h2>Коины по рангам</h2>
+<div class="card table-wrap">
+<table class="panel-table">
+  <tr><th>Ранг</th><th>У игроков</th><th>Биржа (BJ+слот)</th></tr>
   {% for r in rows %}
   <tr>
     <td><span class="chip sm" data-c="{{ r.coin.code }}">{{ r.coin.code }}</span></td>
     <td class="mono">{{ r.players }}</td>
-    <td class="mono" style="color:{% if r.house > 0 %}var(--green){% elif r.house < 0 %}var(--red){% else %}var(--muted){% endif %}">{% if r.house > 0 %}+{% endif %}{{ r.house }}</td>
+    <td class="mono {% if r.house > 0 %}pos{% elif r.house < 0 %}neg{% endif %}">{% if r.house > 0 %}+{% endif %}{{ r.house }}</td>
   </tr>
   {% endfor %}
-  <tr>
-    <td><b>Итого</b></td>
-    <td class="mono"><b>{{ total_players }}</b></td>
-    <td class="mono"><b>{% if total_house > 0 %}+{% endif %}{{ total_house }}</b></td>
-  </tr>
-</table>
-</div>
-
-<h2>Кто сколько проиграл</h2>
-<div class="card">
-<table>
-  <tr><th>Игрок</th><th>Итог в блекджеке</th><th></th></tr>
-  {% for p in players %}
-  <tr>
-    <td>{{ p.username }}</td>
-    <td class="mono" style="color:{% if p.lost > 0 %}var(--red){% elif p.lost < 0 %}var(--green){% else %}var(--muted){% endif %}">
-      {% if p.lost > 0 %}проиграл {{ p.lost }}{% elif p.lost < 0 %}выиграл {{ p.lost|stringformat:"d"|slice:"1:" }}{% else %}в нуле{% endif %}
-    </td>
-    <td><a href="{% url 'panel_user_detail' p.id %}">Открыть</a></td>
-  </tr>
-  {% empty %}<tr><td colspan="3" class="helper">В блекджек ещё никто не играл.</td></tr>{% endfor %}
 </table>
 </div>
 {% endblock %}

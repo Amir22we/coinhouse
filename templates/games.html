@@ -2,17 +2,29 @@
 {% block title %}Игры — Coinhouse{% endblock %}
 {% block content %}
 <h1>Игры</h1>
-<p class="sub">Пока за столом одна игра скоро будет больше.</p>
+<p class="sub">Играй против стола или против живого соперника онлайн.</p>
 <div class="grid cols-3">
-  <a class="card" href="{% url 'blackjack' %}" style="text-decoration:none;color:var(--cream)">
-    <div style="font-size:40px">♠ ♥</div>
+  <a class="card" href="{% url 'duel' %}">
+    <div class="game-icon">
+      <span class="icon-swords" aria-hidden="true"></span>
+      <span class="suit" style="font-size:28px;margin-left:10px" aria-hidden="true">♠</span>
+    </div>
+    <h2 style="margin:10px 0 6px">Дуэль <span class="chip sm" style="vertical-align:middle">PvP</span></h2>
+    <p class="helper">Блекджек один-на-один. Нажми «Играть» — найдём соперника онлайн. Победитель забирает банк (×2).</p>
+  </a>
+  <a class="card" href="{% url 'blackjack' %}">
+    <div class="game-icon icon-cards" aria-hidden="true">
+      <span class="suit">♠</span><span class="suit red">♥</span>
+    </div>
     <h2 style="margin:10px 0 6px">Блекджек</h2>
     <p class="helper">Классика против стола. Ставка от 3 коинов, ранги можно смешивать. Выплата 1:1.</p>
   </a>
-  <div class="card" style="opacity:.5">
-    <div style="font-size:40px">🎰</div>
-    <h2 style="margin:10px 0 6px">Скоро</h2>
-    <p class="helper">Следующая игра в разработке.</p>
-  </div>
+  <a class="card" href="{% url 'slots' %}">
+    <div class="game-icon" aria-hidden="true">
+      <span class="icon-slot-mini"><span>7</span><span>7</span><span>7</span></span>
+    </div>
+    <h2 style="margin:10px 0 6px">Слот</h2>
+    <p class="helper">Крути барабаны с цифрами. Три одинаковых — выигрыш ×2. Ставка от 3 коинов.</p>
+  </a>
 </div>
 {% endblock %}

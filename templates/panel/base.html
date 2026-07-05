@@ -43,6 +43,13 @@
     btn.classList.toggle('open',open);
     btn.setAttribute('aria-expanded',open);
   });
+  menu.querySelectorAll('a').forEach(function(link){
+    link.addEventListener('click',function(){
+      menu.classList.remove('open');
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded','false');
+    });
+  });
 })();
 </script>
 </body>

@@ -2,28 +2,63 @@
 {% block title %}Обзор — Админ{% endblock %}
 {% block content %}
 <h1>Обзор</h1>
-<p class="sub">Заявки, балансы и пользователи площадки.</p>
-<div class="grid cols-3">
-  <div class="card"><div class="panel-stat">{{ pending_deposits }}</div><div class="panel-stat-label">пополнений в работе</div></div>
-  <div class="card"><div class="panel-stat">{{ pending_withdraws }}</div><div class="panel-stat-label">выводов ждут подтверждения</div></div>
-  <div class="card"><div class="panel-stat">{{ users_count }}</div><div class="panel-stat-label">пользователей</div></div>
-  <div class="card"><div class="panel-stat">{{ total_players }}</div><div class="panel-stat-label">коинов на руках у игроков</div></div>
-  <div class="card"><div class="panel-stat {% if total_house >= 0 %}pos{% else %}neg{% endif %}">{% if total_house > 0 %}+{% endif %}{{ total_house }}</div><div class="panel-stat-label">заработала биржа · <a href="{% url 'panel_economy' %}">подробнее</a></div></div>
+<p class="sub">Заявки, балансы и игры на площадке.</p>
+
+<div class="panel-stat-grid">
+  <div class="card panel-stat-card">
+    <div class="panel-stat">{{ pending_deposits }}</div>
+    <div class="panel-stat-label">пополнений в работе</div>
+  </div>
+  <div class="card panel-stat-card">
+    <div class="panel-stat">{{ pending_withdraws }}</div>
+    <div class="panel-stat-label">выводов ждут</div>
+  </div>
+  <div class="card panel-stat-card">
+    <div class="panel-stat">{{ users_count }}</div>
+    <div class="panel-stat-label">пользователей</div>
+  </div>
+  <div class="card panel-stat-card">
+    <div class="panel-stat">{{ total_players }}</div>
+    <div class="panel-stat-label">коинов у игроков</div>
+  </div>
+  <div class="card panel-stat-card">
+    <div class="panel-stat {% if total_house >= 0 %}pos{% else %}neg{% endif %}">{% if total_house > 0 %}+{% endif %}{{ total_house }}</div>
+    <div class="panel-stat-label">биржа · <a href="{% url 'panel_economy' %}">статистика</a></div>
+  </div>
+  <div class="card panel-stat-card">
+    <div class="panel-stat">{{ duel_count }}</div>
+    <div class="panel-stat-label">дуэлей</div>
+  </div>
 </div>
+
+<h2>Игры</h2>
+<div class="panel-game-grid">
+  {% for g in games %}
+  <a class="card panel-game-card panel-game-{{ g.key }}" href="{% url 'panel_economy' %}?game={{ g.key }}">
+    <span class="panel-game-tag {{ g.key }}">{{ g.label }}</span>
+    <div class="panel-stat" style="font-size:26px;margin:8px 0">
+      {% if g.key == 'duel' %}{{ g.tx_count }}{% else %}{% if g.house > 0 %}+{% endif %}{{ g.house }}{% endif %}
+    </div>
+    <div class="panel-stat-label">{% if g.key == 'duel' %}операций{% else %}биржа{% endif %} · {{ g.players_count }} игр.</div>
+  </a>
+  {% endfor %}
+</div>
+
 <h2>Последние заявки</h2>
-<div class="card">
-<table>
-  <tr><th>№</th><th>Пользователь</th><th>Тип</th><th>Коины</th><th>Статус</th><th></th></tr>
+<div class="card table-wrap">
+<table class="panel-table">
+  <tr><th>№</th><th>Дата</th><th>Пользователь</th><th>Тип</th><th>Коины</th><th>Статус</th><th></th></tr>
   {% for r in recent %}
   <tr>
     <td class="mono">#{{ r.id }}</td>
+    <td class="mono">{{ r.created_at|date:"d.m H:i" }}</td>
     <td>{{ r.user.username }}</td>
     <td>{{ r.get_kind_display }}</td>
     <td class="mono">{{ r.items_display }}</td>
     <td><span class="status {{ r.status }}">{{ r.get_status_display }}</span></td>
     <td><a href="{% url 'panel_request_detail' r.id %}">Открыть</a></td>
   </tr>
-  {% empty %}<tr><td colspan="6" class="helper">Заявок пока нет.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="7" class="helper">Заявок пока нет.</td></tr>{% endfor %}
 </table>
 </div>
 {% endblock %}

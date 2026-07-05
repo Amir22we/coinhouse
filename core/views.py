@@ -9,8 +9,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from . import blackjack as bj
+from . import slots as slots_game
+from .panel_stats import GAMES, economy_overview, game_activity, player_game_stats
 from .models import (
-    Balance, CoinRequest, CoinType, Message, Transaction,
+    Balance, CoinRequest, CoinType, Duel, Message, Transaction,
     credit, debit, get_balances,
 )
 
@@ -154,6 +156,20 @@ def games(request):
 
 
 @login_required
+def duel_view(request):
+    """PvP-блекджек: поиск соперника онлайн. Игровой обмен идёт по WebSocket."""
+    balances = get_balances(request.user)
+    recent = (
+        Duel.objects.filter(player1=request.user) | Duel.objects.filter(player2=request.user)
+    ).distinct()[:10]
+    return render(request, "duel.html", {
+        "balances": balances,
+        "min_bet": bj.MIN_BET_TOTAL,
+        "recent": recent,
+    })
+
+
+@login_required
 def blackjack_view(request):
     game = request.session.get("bj_game")
     balances = get_balances(request.user)
@@ -238,6 +254,40 @@ def _settle(request, game):
         flash.error(request, "Поражение. Ставка списана.")
 
 
+@login_required
+def slots_view(request):
+    balances = get_balances(request.user)
+    last = request.session.pop("slots_last", None)
+    return render(request, "slots.html", {
+        "balances": balances,
+        "min_bet": slots_game.MIN_BET_TOTAL,
+        "last": last,
+    })
+
+
+@login_required
+@require_POST
+def slots_spin(request):
+    items = _parse_items(request.POST, prefix="bet_")
+    total = sum(items.values())
+    if total < slots_game.MIN_BET_TOTAL:
+        flash.error(request, f"Минимальная ставка — {slots_game.MIN_BET_TOTAL} коина (можно смешивать ранги).")
+        return redirect("slots")
+    with db_transaction.atomic():
+        if not debit(request.user, items, "Ставка в слот"):
+            flash.error(request, "Недостаточно коинов для такой ставки.")
+            return redirect("slots")
+        result = slots_game.spin()
+        if result["won"]:
+            credit(request.user, {k: v * 2 for k, v in items.items()}, "Выигрыш в слот")
+    request.session["slots_last"] = {
+        "reels": result["reels"],
+        "won": result["won"],
+        "bet_display": ", ".join(f"{v} {k}" for k, v in items.items()),
+    }
+    return redirect("slots")
+
+
 # ---------- Админ-панель ----------
 
 def staff_required(view):
@@ -245,33 +295,12 @@ def staff_required(view):
 
 
 def _economy_stats():
-    """Сводка экономики: коины у игроков и заработок биржи (блекджек)."""
-    coins = list(CoinType.objects.all())
-    on_hands = {
-        r["coin__code"]: r["total"] or 0
-        for r in Balance.objects.values("coin__code").annotate(total=Sum("amount"))
-    }
-    # Ставка списывается (−), выигрыш/возврат начисляется (+):
-    # минус суммы дельт по блекджеку = чистый заработок биржи
-    house = {
-        r["coin__code"]: -(r["d"] or 0)
-        for r in Transaction.objects.filter(reason__icontains="блекджек")
-        .values("coin__code").annotate(d=Sum("delta"))
-    }
-    rows = [
-        {"coin": c, "players": on_hands.get(c.code, 0), "house": house.get(c.code, 0)}
-        for c in coins
-    ]
-    return {
-        "rows": rows,
-        "total_players": sum(r["players"] for r in rows),
-        "total_house": sum(r["house"] for r in rows),
-    }
+    return economy_overview()
 
 
 @staff_required
 def panel_home(request):
-    eco = _economy_stats()
+    eco = economy_overview()
     return render(request, "panel/home.html", {
         "pending_deposits": CoinRequest.objects.filter(kind="deposit", status__in=["pending", "awaiting"]).count(),
         "pending_withdraws": CoinRequest.objects.filter(kind="withdraw", status="pending").count(),
@@ -279,29 +308,29 @@ def panel_home(request):
         "recent": CoinRequest.objects.select_related("user")[:8],
         "total_players": eco["total_players"],
         "total_house": eco["total_house"],
+        "games": eco["games"],
+        "duel_count": eco["duel_count"],
     })
 
 
 @staff_required
 def panel_economy(request):
-    eco = _economy_stats()
-    # Кто сколько проиграл: сумма дельт по блекджеку на пользователя,
-    # отрицательная — игрок в минусе (проиграл бирже)
-    nets = (
-        Transaction.objects.filter(reason__icontains="блекджек")
-        .values("user_id", "user__username")
-        .annotate(net=Sum("delta"))
-        .order_by("net")[:100]
-    )
-    players = [
-        {"id": n["user_id"], "username": n["user__username"], "lost": -(n["net"] or 0)}
-        for n in nets
-    ]
+    eco = economy_overview()
+    game_filter = request.GET.get("game", "")
+    if game_filter and game_filter not in {g["key"] for g in GAMES}:
+        game_filter = ""
+    players = player_game_stats(game_filter or None)
+    activity = game_activity(game_filter or None, limit=120)
     return render(request, "panel/economy.html", {
         "rows": eco["rows"],
+        "games": eco["games"],
         "total_players": eco["total_players"],
         "total_house": eco["total_house"],
+        "duel_count": eco["duel_count"],
         "players": players,
+        "activity": activity,
+        "game_filter": game_filter,
+        "game_choices": GAMES,
     })
 
 
